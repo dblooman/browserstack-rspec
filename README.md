@@ -1,7 +1,7 @@
-browserstack-rspec
+Browserstack-rspec
 ==================
 
-Setup for browser stacks using rspec and capybara
+Setup for [Browserstack](http://www.browserstack.com/) using rspec and capybara
 
 At time of writing, browser stack doesn't give a lot of help for those who don't want to use cucumber, this guide aims to solve that.
 
@@ -14,7 +14,6 @@ The `Rakefile` has a few minor changes with gems and tasks.  I have set the defa
 ```ruby
 require 'rspec/core/rake_task'
 require 'parallel_tests'
-require 'parallel'
 require 'json'
 
 task :default => [:stacks]
@@ -41,7 +40,7 @@ RSpec::Core::RakeTask.new(:spec)
 
 ## Spec_Helper
 
-You can think of `env.rb` as your `spec_helper.rb`, therfor the caps go in there.  I like to just use `Rake` in the command line, so I have removed the `ENV` option for user and authkey.  If you want to use the command line to pass credentials, refer to cucumber docs and remove replace the url variable contents.
+You can think of `env.rb` as your `spec_helper.rb`, therefore the caps go in there.  I like to just use `Rake` in the command line, so I have removed the `ENV` option for user and authkey.  If you want to use the command line to pass credentials, refer to cucumber docs and remove replace the URL variable contents.
 
 ```ruby
 require 'rspec'
