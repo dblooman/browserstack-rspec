@@ -1,7 +1,7 @@
-browserstack-rspec
+Browserstack-rspec
 ==================
 
-Setup for browser stacks using rspec and capybara
+Setup for [Browserstack](http://www.browserstack.com/) using rspec and capybara
 
 At time of writing, browser stack doesn't give a lot of help for those who don't want to use cucumber, this guide aims to solve that.
 
@@ -44,6 +44,7 @@ RSpec::Core::RakeTask.new(:spec)
 
 You can think of `env.rb` as your `spec_helper.rb`, therefor the caps go in there.  I like to just use `Rake` in the command line, so I have removed the `ENV` option for user and authkey.  If you want to use the command line to pass credentials, refer to cucumber docs and remove replace the url variable contents.
 You will see support/helpers, this assumes you have a support folder with a file called `helpers.rb`.  Place your helpers in there, these helpers are then called in the Rspec setup with ```ruby config.include Helpers```
+
 ```ruby
 require 'rspec'
 require 'rspec/core'
