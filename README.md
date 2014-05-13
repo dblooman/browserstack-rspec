@@ -15,29 +15,67 @@ The `Rakefile` has a few minor changes with gems and tasks.  I have set the defa
 require 'rspec/core/rake_task'
 require 'parallel'
 require 'json'
+require 'dotenv'
+require 'dotenv/tasks'
 
-task :default => [:stacks]
+Dotenv.load(ENV['CONFIG'])
+
+task :default => ENV['TASK']
 
 @browsers = JSON.load(open('browsers.json'))
-@parallel_limit = ENV["nodes"] || 5
+@parallel_limit = ENV["nodes"] || 8
 @parallel_limit = @parallel_limit.to_i
+@combinations_failed = []
 
-task :stacks do
-  Parallel.each(@browsers, :in_processes => @parallel_limit) do |browser|
-    begin
-      puts "Running with: #{browser.inspect}"
-      ENV['SELENIUM_BROWSER'] = browser['browser']
-      ENV['SELENIUM_VERSION'] = browser['browser_version']
-      ENV['BS_AUTOMATE_OS'] = browser['os']
-      ENV['BS_AUTOMATE_OS_VERSION'] = browser['os_version']
-      Rake::Task[:spec].execute()
-    rescue RuntimeError => e
-      puts "Error while running task"
+task :mobile_stacks do
+  @browsers = JSON.load(open('mobile.json'))
+  Rake::Task["stacks"].invoke
+end
+
+task :stacks => :dotenv do
+  begin
+    Parallel.each(@browsers, :in_threads => @parallel_limit) do |browser|
+      begin
+        puts "Running with: #{browser.inspect}"
+        ENV['SELENIUM_BROWSER'] = browser['browser']
+        ENV['SELENIUM_VERSION'] = browser['browser_version']
+        ENV['BS_AUTOMATE_OS'] = browser['os']
+        ENV['BS_AUTOMATE_OS_VERSION'] = browser['os_version']
+        ENV['BS_AUTOMATE_PLATFORM'] = browser['platform']
+        ENV['BS_AUTOMATE_DEVICE'] = browser['device']
+        ENV['BS_AUTOMATE_BROWSER_NAME'] = browser['browserName']
+        ENV['BS_AUTOMATE_PROJECT'] = browser['project']
+        ENV['BS_AUTOMATE_BUILD'] = browser['build']
+
+        Rake::Task[:spec].execute()
+      rescue RuntimeError => e
+        puts "Error while running task"
+      rescue Exception => e
+        @combinations_failed << browser
+      end
+    end
+  ensure
+    puts "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"
+    puts "Your test failed for following combinations"
+    @combinations_failed.each do |ele|
+      puts "Your test failed for >>>> #{ele.inspect}"
+      exit 1
+      # You can redirect this output to a log file to make it more clear
     end
   end
 end
 
-RSpec::Core::RakeTask.new(:spec)
+RSpec::Core::RakeTask.new(:spec) do |t|
+  t.rspec_opts = ENV['TAG']
+end
+
+task :local => :dotenv do
+  begin
+    Rake::Task[:spec].execute()
+  rescue RuntimeError => e
+    puts "Error while running task"
+  end
+end
 ```
 
 ## Spec_Helper
@@ -52,11 +90,44 @@ require 'capybara'
 require 'capybara/rspec'
 require 'capybara/dsl'
 require 'selenium/webdriver'
+require 'capybara/poltergeist'
 require 'support/helpers'
+require 'selendroid'
 
 # Use credentials here
 url = "http://USERNAME:AUTHKEY@hub.browserstack.com/wd/hub"
 
+# For local testing
+Capybara.register_driver :poltergeist do |app|
+  driver = Capybara::Poltergeist::Driver.new(app, {
+    :timeout => 60,
+    :js_errors => false,
+  })
+
+  driver
+end
+
+# For local testing
+Capybara.register_driver :chrome do |app|
+  Capybara::Selenium::Driver.new(app, :browser => :chrome)
+end
+
+# For local testing
+Capybara.register_driver :firefox do |app|
+  Capybara::Selenium::Driver.new(app, :browser => :firefox)
+end
+
+# For local testing
+Capybara.register_driver :android do |app|
+  Capybara::Selenium::Driver.new(app, :url => "http://localhost:4444/wd/hub", :browser => :android)
+end
+
+# For local testing
+Capybara.register_driver :opera do |app|
+  Capybara::Selenium::Driver.new(app, :browser => :opera)
+end
+
+# For Browserstack
 Capybara.register_driver :selenium do |app|
   capabilities = {
     os: ENV['BS_AUTOMATE_OS'],
@@ -64,8 +135,10 @@ Capybara.register_driver :selenium do |app|
     browser:  ENV['SELENIUM_BROWSER'],
     browser_version: ENV['SELENIUM_VERSION'],
     :"browserstack.debug" => "true",
-    project: "News",
-    build: "#{ENV['BS_AUTOMATE_BUILD'] if ENV['BS_AUTOMATE_BUILD']}"
+    :"browserstack.local" => "true",
+    project: "Responsive News",
+    name: "News Tests",
+    build: "0"
   }
 
   Capybara::Selenium::Driver.new(app, {
@@ -75,7 +148,13 @@ Capybara.register_driver :selenium do |app|
   })
 end
 
-Capybara.default_driver = :selenium
+# Set host for URLs
+Capybara.app_host = ENV['HOST']
+
+# Capybara setting
+driver = ENV['DRIVER'].to_sym
+Capybara.default_driver = driver
+Capybara.run_server = false
 
 # Make Rspec matchers available to specs
 RSpec.configure do |config|
@@ -88,10 +167,21 @@ RSpec.configure do |config|
     Capybara.use_default_driver
   end
 end
-
-describe "browsers" do
-  before(:each) do
-    @browser = :selenium
-  end
-end
 ```
+
+## ENV file
+Here is an example of a .env file that we use, we have many for different environments and for local testing.  
+
+### Filename would .live.env
+
+```yaml
+TASK=stacks
+SITE=live
+HOST=http://www.live.bbc.co.uk
+TAG='--tag standard --tag video'
+DRIVER=selenium
+```
+
+## Running
+
+`CONFIG=.live.env rake`
