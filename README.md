@@ -55,12 +55,15 @@ task :stacks => :dotenv do
       end
     end
   ensure
-    puts "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"
-    puts "Your test failed for following combinations"
-    @combinations_failed.each do |ele|
-      puts "Your test failed for >>>> #{ele.inspect}"
+  puts "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"
+  puts "Your test failed for following combinations"
+    if !@combinations_failed.empty?
+      @combinations_failed.each do |ele|
+        puts "Your test failed for >>>> #{ele.inspect}"
+      end
       exit 1
-      # You can redirect this output to a log file to make it more clear
+    else
+      exit 0
     end
   end
 end
@@ -167,6 +170,7 @@ RSpec.configure do |config|
     Capybara.use_default_driver
   end
 end
+
 ```
 
 ## ENV file
